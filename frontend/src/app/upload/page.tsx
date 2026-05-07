@@ -62,21 +62,45 @@ export default function UploadPage() {
     setError(null);
     setIsLoading(true);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl}/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to parse the receipt.');
+      const puter = (window as any).puter;
+      if (!puter || !puter.ai) {
+        throw new Error('Puter SDK is not loaded. Please ensure you are connected to the internet.');
       }
 
-      const data = await response.json();
+      // Step 1: Extract text using Puter.js OCR
+      const extractedText = await puter.ai.img2txt(file);
+
+      // Step 2: Use Puter.js Chat to structure the extracted data
+      const prompt = `Here is text extracted from a receipt:
+${extractedText}
+
+Extract the merchant name, total amount, and date. 
+Return ONLY a valid JSON object with the exact keys: "merchant" (string), "total_amount" (number), and "date" (string in YYYY-MM-DD format). Do not wrap the JSON in markdown code blocks, just return the raw JSON string.`;
+
+      const response = await puter.ai.chat(prompt);
+      
+      // Defensively extract content, as Puter.js might return a string, an object, or an object containing the JSON
+      let rawContent = response?.message?.content ?? response;
+      
+      // Handle Anthropic/Claude style content arrays
+      if (Array.isArray(rawContent)) {
+        const textBlock = rawContent.find((b: any) => b.type === 'text' || b.text);
+        rawContent = textBlock ? textBlock.text : rawContent[0];
+      }
+      
+      let data;
+      if (typeof rawContent === 'object' && rawContent !== null) {
+        // If it was parsed as a direct object by the SDK
+        data = rawContent;
+      } else {
+        let jsonStr = String(rawContent).trim();
+        if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace(/^```json/, '');
+        if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace(/^```/, '');
+        if (jsonStr.endsWith('```')) jsonStr = jsonStr.replace(/```$/, '');
+        data = JSON.parse(jsonStr);
+      }
+
       setParsedData({
         merchant: data.merchant || '',
         total_amount: data.total_amount ? data.total_amount.toString() : '',
@@ -85,7 +109,8 @@ export default function UploadPage() {
       });
       setStep('review');
     } catch (err: any) {
-      setError(err.message || 'An error occurred during upload.');
+      console.error(err);
+      setError(err.message || 'An error occurred during OCR extraction.');
     } finally {
       setIsLoading(false);
     }

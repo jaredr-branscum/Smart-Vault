@@ -6,8 +6,8 @@ Smart Vault is an intelligent digital receipt organizer. It allows users to uplo
 
 ## Technology Stack
 
-- **Frontend**: Next.js 15 (App Router), React, Tailwind CSS v4, Recharts.
-- **Backend**: Python, FastAPI, PyMuPDF (for PDF extraction), SQLAlchemy.
+- **Frontend**: Next.js 15 (App Router), React, Tailwind CSS v4, Recharts, Puter.js (for AI OCR).
+- **Backend**: Python, FastAPI, SQLAlchemy.
 - **Database**: SQLite (for lightweight local development and tests), structurally ready for PostgreSQL in production.
 
 ---
@@ -88,7 +88,7 @@ npm run test
 
 ## Key Features
 - **Smart Upload Interface**: Drag and drop PDF receipts.
-- **Auto Parsing**: Extracts the Merchant, Date, and Total Amount automatically via PDF parsing.
+- **AI-Powered Parsing**: Extracts Merchant, Date, and Total Amount automatically using Puter.js AI OCR.
 - **Review & Categorize**: Users can assign categories to expenses before confirming the save.
 - **Analytics Dashboard**: Visualize spending over time and categorical breakdowns using animated Recharts.
 - **Premium UI/UX**: Designed with Gitlab and Voya color themes, incorporating glassmorphism and modern web aesthetics.

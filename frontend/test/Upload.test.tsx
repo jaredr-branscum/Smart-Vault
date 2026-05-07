@@ -2,12 +2,27 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UploadPage from '@/app/upload/page';
 
-// Mock the global fetch API
+// Mock the global fetch API (still used for saving)
 global.fetch = jest.fn();
+
+// Mock puter.js
+const mockImg2Txt = jest.fn();
+const mockChat = jest.fn();
+
+beforeAll(() => {
+  (window as any).puter = {
+    ai: {
+      img2txt: mockImg2Txt,
+      chat: mockChat
+    }
+  };
+});
 
 describe('Upload Page', () => {
   beforeEach(() => {
     (global.fetch as jest.Mock).mockClear();
+    mockImg2Txt.mockClear();
+    mockChat.mockClear();
   });
 
   it('renders the upload dropzone initially', () => {
@@ -17,10 +32,16 @@ describe('Upload Page', () => {
   });
 
   it('handles file selection, shows preview, then allows confirmation to review', async () => {
-    // Mock the backend upload response
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ merchant: 'Test Merchant', total_amount: 123.45, date: '2026-05-07' }),
+    mockImg2Txt.mockResolvedValueOnce("Walmart\nTotal: 123.45\nDate: 2026-05-07");
+    mockChat.mockResolvedValueOnce({
+      message: { 
+        content: [
+          {
+            type: "text",
+            text: '{"merchant": "Walmart", "total_amount": 123.45, "date": "2026-05-07"}'
+          }
+        ] 
+      }
     });
 
     // Mock URL.createObjectURL since JSDOM doesn't have it
@@ -48,8 +69,9 @@ describe('Upload Page', () => {
     // Click confirm
     await userEvent.click(confirmBtn);
 
-    // Assert fetch was called with the file
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    // Assert puter was called
+    expect(mockImg2Txt).toHaveBeenCalledWith(file);
+    expect(mockChat).toHaveBeenCalled();
 
     // Wait for the review form to appear
     await waitFor(() => {
@@ -57,7 +79,7 @@ describe('Upload Page', () => {
     });
 
     // Check if the inputs are populated with the parsed data
-    const merchantInput = screen.getByDisplayValue('Test Merchant');
+    const merchantInput = screen.getByDisplayValue('Walmart');
     expect(merchantInput).toBeInTheDocument();
     
     const amountInput = screen.getByDisplayValue('123.45');

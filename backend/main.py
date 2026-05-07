@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,7 +7,6 @@ import datetime
 import models
 import schemas
 from database import engine, get_db
-from pdf_parser import parse_pdf_receipt
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
@@ -21,19 +20,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.post("/upload", response_model=schemas.ReceiptBase)
-async def upload_receipt(file: UploadFile = File(...)):
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported for now.")
-        
-    contents = await file.read()
-    parsed_data = parse_pdf_receipt(contents)
-    
-    if "error" in parsed_data:
-        raise HTTPException(status_code=500, detail=f"Failed to parse PDF: {parsed_data['error']}")
-        
-    return parsed_data
 
 @app.post("/receipts", response_model=schemas.ReceiptOut)
 def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(get_db)):

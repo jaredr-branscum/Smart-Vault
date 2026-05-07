@@ -1,13 +1,19 @@
 # Backend (Python)
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
-backend/.pytest_cache/
-*.db
-*.sqlite
 backend/.env
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/*.db
+**/*.sqlite
 
 # Mac/Windows
 .DS_Store
 Thumbs.db
-backend/*.db
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.env*
+frontend/dist/
+frontend/out/

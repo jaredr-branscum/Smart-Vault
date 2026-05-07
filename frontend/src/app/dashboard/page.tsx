@@ -90,7 +90,7 @@ export default function DashboardPage() {
               type="date" 
               value={startDate} 
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm"
+              className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm [color-scheme:dark] cursor-pointer"
               aria-label="Start Date"
             />
             <span className="text-[var(--foreground)]/50">to</span>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
               type="date" 
               value={endDate} 
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm"
+              className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm [color-scheme:dark] cursor-pointer"
               aria-label="End Date"
             />
           </div>
