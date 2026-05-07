@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 import datetime
@@ -41,25 +42,46 @@ def get_analytics(
     categories: List[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.Receipt)
+    # Base query for totals
+    total_query = db.query(func.sum(models.Receipt.total_amount))
     if start_date:
-        query = query.filter(models.Receipt.date >= start_date)
+        total_query = total_query.filter(models.Receipt.date >= start_date)
     if end_date:
-        query = query.filter(models.Receipt.date <= end_date)
+        total_query = total_query.filter(models.Receipt.date <= end_date)
     if categories:
-        query = query.filter(models.Receipt.category.in_(categories))
+        total_query = total_query.filter(models.Receipt.category.in_(categories))
         
-    receipts = query.all()
+    total_expenses = total_query.scalar() or 0.0
+
+    # Category breakdown query
+    cat_query = db.query(
+        models.Receipt.category, 
+        func.sum(models.Receipt.total_amount)
+    ).group_by(models.Receipt.category)
     
-    total = sum(r.total_amount for r in receipts if r.total_amount)
-    by_category = {}
-    for r in receipts:
-        if r.category:
-            by_category[r.category] = by_category.get(r.category, 0) + (r.total_amount or 0)
+    if start_date:
+        cat_query = cat_query.filter(models.Receipt.date >= start_date)
+    if end_date:
+        cat_query = cat_query.filter(models.Receipt.date <= end_date)
+    if categories:
+        cat_query = cat_query.filter(models.Receipt.category.in_(categories))
+        
+    by_category = {cat: amt for cat, amt in cat_query.all() if cat}
+
+    # Fetch detailed receipts
+    receipts_query = db.query(models.Receipt)
+    if start_date:
+        receipts_query = receipts_query.filter(models.Receipt.date >= start_date)
+    if end_date:
+        receipts_query = receipts_query.filter(models.Receipt.date <= end_date)
+    if categories:
+        receipts_query = receipts_query.filter(models.Receipt.category.in_(categories))
+        
+    receipts = receipts_query.all()
             
     return {
-        "total_expenses": total,
+        "total_expenses": total_expenses,
         "by_category": by_category,
-        "receipts": [{"id": r.id, "merchant": r.merchant, "amount": r.total_amount, "date": r.date, "category": r.category} for r in receipts]
+        "receipts": [schemas.ReceiptOut.model_validate(r) for r in receipts]
     }
 

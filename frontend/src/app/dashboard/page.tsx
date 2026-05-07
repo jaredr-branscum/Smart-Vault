@@ -59,7 +59,7 @@ export default function DashboardPage() {
   if (data?.receipts) {
     data.receipts.forEach((r: any) => {
       if (r.date) {
-        lineDataMap[r.date] = (lineDataMap[r.date] || 0) + (r.amount || 0);
+        lineDataMap[r.date] = (lineDataMap[r.date] || 0) + (r.total_amount || 0);
       }
     });
   }
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-[var(--color-voya-mint)] text-xl">${r.amount?.toFixed(2)}</p>
+                      <p className="font-bold text-[var(--color-voya-mint)] text-xl">${r.total_amount?.toFixed(2)}</p>
                     </div>
                   </div>
                 ))}
