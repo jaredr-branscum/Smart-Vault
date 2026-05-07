@@ -4,7 +4,8 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 
 export default function UploadPage() {
-  const [step, setStep] = useState<'upload' | 'review' | 'success'>('upload');
+  const [step, setStep] = useState<'upload' | 'preview' | 'review' | 'success'>('upload');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,20 +28,30 @@ export default function UploadPage() {
     setIsDragging(false);
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      await processFile(files[0]);
+      handleFileSelected(files[0]);
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      await processFile(files[0]);
+      handleFileSelected(files[0]);
     }
+  };
+
+  const handleFileSelected = (file: File) => {
+    if (file.type !== 'application/pdf') {
+      setError('Please upload a valid PDF file.');
+      return;
+    }
+    setError(null);
+    setSelectedFile(file);
+    setStep('preview');
   };
 
   const processFile = async (file: File) => {
@@ -168,6 +179,39 @@ export default function UploadPage() {
               >
                 {isLoading ? 'Processing...' : 'Browse Files'}
               </button>
+            </div>
+          )}
+
+          {step === 'preview' && selectedFile && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">Preview Receipt</h2>
+                <button 
+                  onClick={() => { setSelectedFile(null); setStep('upload'); }}
+                  className="px-4 py-2 text-sm bg-transparent border border-[var(--foreground)]/20 text-[var(--foreground)] rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+                >
+                  Choose Different File
+                </button>
+              </div>
+              
+              <div className="w-full h-96 rounded-2xl overflow-hidden border border-[var(--foreground)]/10 mb-8 bg-white/5 flex flex-col relative">
+                <iframe 
+                  src={URL.createObjectURL(selectedFile)} 
+                  className="w-full h-full border-none"
+                  title="PDF Preview"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => processFile(selectedFile)}
+                  disabled={isLoading}
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-gitlab-orange)] to-[#e24329] text-white font-bold shadow-[0_0_15px_rgba(252,109,38,0.3)] hover:shadow-[0_0_20px_rgba(252,109,38,0.6)] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                >
+                  {isLoading ? 'Extracting Data...' : 'Confirm & Extract Metadata'}
+                  {!isLoading && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
+                </button>
+              </div>
             </div>
           )}
 

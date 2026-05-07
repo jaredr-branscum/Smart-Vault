@@ -3,9 +3,11 @@ backend/venv/
 backend/__pycache__/
 backend/*.pyc
 backend/.pytest_cache/
-backend/*.db
+*.db
+*.sqlite
 backend/.env
 
 # Mac/Windows
 .DS_Store
 Thumbs.db
+backend/*.db
