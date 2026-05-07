@@ -2,12 +2,24 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import { identifyPII, finalizeRedaction, RedactionBox } from '@/lib/security';
+import RedactionEditor from '@/components/RedactionEditor';
 
 export default function UploadPage() {
-  const [step, setStep] = useState<'upload' | 'preview' | 'review' | 'success'>('upload');
+  const [step, setStep] = useState<'upload' | 'redact' | 'preview' | 'review' | 'success'>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSecuring, setIsSecuring] = useState(false);
+  const [redactionData, setRedactionData] = useState<{
+    originalImage: string;
+    boxes: RedactionBox[];
+    width: number;
+    height: number;
+    isPDF: boolean;
+  } | null>(null);
+  const [redactedFile, setRedactedFile] = useState<File | null>(null);
+  const [redactedPreviewUrl, setRedactedPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -44,19 +56,57 @@ export default function UploadPage() {
     }
   };
 
-  const handleFileSelected = (file: File) => {
-    if (file.type !== 'application/pdf') {
-      setError('Please upload a valid PDF file.');
+  const handleFileSelected = async (file: File) => {
+    // Basic validation
+    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+      setError('Please upload a valid PDF or Image file.');
       return;
     }
+    
     setError(null);
     setSelectedFile(file);
-    setStep('preview');
+    setIsSecuring(true);
+
+    try {
+      // Step 1: Automated PII Identification (Client-Side)
+      const data = await identifyPII(file);
+      setRedactionData(data);
+      setStep('redact');
+    } catch (err: any) {
+      console.error('Security scan failed:', err);
+      setError('Security scanning failed. Please try again with a clearer file.');
+      setStep('upload');
+    } finally {
+      setIsSecuring(false);
+    }
+  };
+
+  const handleApplyRedactions = async (boxes: RedactionBox[]) => {
+    if (!selectedFile || !redactionData) return;
+    setIsLoading(true);
+    try {
+      // Step 2: User-verified Finalization
+      const { redactedFile, previewUrl } = await finalizeRedaction(
+        redactionData.originalImage,
+        boxes,
+        redactionData.width,
+        redactionData.height,
+        redactionData.isPDF,
+        selectedFile.name
+      );
+      setRedactedFile(redactedFile);
+      setRedactedPreviewUrl(previewUrl);
+      setStep('preview');
+    } catch (err: any) {
+      setError('Failed to apply redactions.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const processFile = async (file: File) => {
-    if (file.type !== 'application/pdf') {
-      setError('Please upload a valid PDF file.');
+    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+      setError('Please upload a valid PDF or Image file.');
       return;
     }
     setError(null);
@@ -68,8 +118,8 @@ export default function UploadPage() {
         throw new Error('Puter SDK is not loaded. Please ensure you are connected to the internet.');
       }
 
-      // Step 1: Extract text using Puter.js OCR
-      const extractedText = await puter.ai.img2txt(file);
+      // Step 1: Extract text using Puter.js OCR (Using the REDACTED file)
+      const extractedText = await puter.ai.img2txt(redactedFile || file);
 
       // Step 2: Use Puter.js Chat to structure the extracted data
       const prompt = `Here is text extracted from a receipt:
@@ -168,7 +218,7 @@ Return ONLY a valid JSON object with the exact keys: "merchant" (string), "total
             </div>
           )}
 
-          {step === 'upload' && (
+          {step === 'upload' && !isSecuring && (
             <div 
               className={`border-4 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
                 isDragging 
@@ -187,13 +237,13 @@ Return ONLY a valid JSON object with the exact keys: "merchant" (string), "total
                 </div>
               </div>
               <h3 className="text-xl font-bold text-[var(--foreground)] mb-2">Drag and drop your receipt here</h3>
-              <p className="text-[var(--foreground)]/60 mb-8">Files supported: PDF</p>
+              <p className="text-[var(--foreground)]/60 mb-8">Files supported: PDF, Images</p>
               
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
-                accept="application/pdf" 
+                accept="application/pdf,image/*" 
                 className="hidden" 
                 aria-label="upload"
               />
@@ -207,29 +257,69 @@ Return ONLY a valid JSON object with the exact keys: "merchant" (string), "total
             </div>
           )}
 
+          {isSecuring && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 border-4 border-[var(--color-voya-mint)] border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-white mb-2">Security Scanning...</h3>
+              <p className="text-white/60">Identifying sensitive PII locally in your browser</p>
+            </div>
+          )}
+
+          {step === 'redact' && redactionData && (
+            <RedactionEditor 
+              originalImage={redactionData.originalImage}
+              initialBoxes={redactionData.boxes}
+              width={redactionData.width}
+              height={redactionData.height}
+              onSave={handleApplyRedactions}
+              onCancel={() => setStep('upload')}
+            />
+          )}
+
           {step === 'preview' && selectedFile && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-[var(--foreground)]">Preview Receipt</h2>
+                <h2 className="text-2xl font-bold text-[var(--foreground)]">Final Preview</h2>
                 <button 
                   onClick={() => { setSelectedFile(null); setStep('upload'); }}
                   className="px-4 py-2 text-sm bg-transparent border border-[var(--foreground)]/20 text-[var(--foreground)] rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-all"
                 >
-                  Choose Different File
+                  Start Over
                 </button>
               </div>
               
-              <div className="w-full h-96 rounded-2xl overflow-hidden border border-[var(--foreground)]/10 mb-8 bg-white/5 flex flex-col relative">
-                <iframe 
-                  src={URL.createObjectURL(selectedFile)} 
-                  className="w-full h-full border-none"
-                  title="PDF Preview"
-                />
+              <div className="w-full h-96 rounded-2xl overflow-hidden border border-[var(--foreground)]/10 mb-8 bg-black/40 flex flex-col relative items-center justify-center">
+                {redactedPreviewUrl && redactedFile ? (
+                  <>
+                    {redactedFile.type === 'application/pdf' ? (
+                      <iframe 
+                        src={redactedPreviewUrl} 
+                        className="w-full h-full border-none"
+                        title="Redacted PDF Preview"
+                      />
+                    ) : (
+                      <img 
+                        src={redactedPreviewUrl} 
+                        className="w-full h-full object-contain"
+                        alt="Redacted Preview"
+                      />
+                    )}
+                    <div className="absolute top-4 right-4 bg-green-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg pointer-events-none">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 4.946-2.397 9.265-6.11 11.856L10 20l-1.89-1.143C4.397 16.265 2 11.946 2 7.001c0-.682.057-1.35.166-2.002zm7.5 1.614l-2.835 2.835-.707-.707L8.959 5.906 9.666 6.613z" clipRule="evenodd" /></svg>
+                      PII Protected
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+                    <p className="text-white/60">Generating Final Document...</p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4">
                 <button 
-                  onClick={() => processFile(selectedFile)}
+                  onClick={() => processFile(redactedFile || selectedFile)}
                   disabled={isLoading}
                   className="w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-gitlab-orange)] to-[#e24329] text-white font-bold shadow-[0_0_15px_rgba(252,109,38,0.3)] hover:shadow-[0_0_20px_rgba(252,109,38,0.6)] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
                 >

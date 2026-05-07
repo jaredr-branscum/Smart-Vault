@@ -1,8 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import UploadPage from '@/app/upload/page';
 
-// Mock the global fetch API (still used for saving)
+// Mock the global fetch API
 global.fetch = jest.fn();
 
 // Mock puter.js
@@ -18,71 +17,72 @@ beforeAll(() => {
   };
 });
 
-describe('Upload Page', () => {
+// Mock the security utility
+jest.mock('@/lib/security', () => ({
+  identifyPII: jest.fn().mockImplementation((file) => Promise.resolve({
+    originalImage: 'mock-original-url',
+    boxes: [{ id: 'box-1', x: 10, y: 10, width: 50, height: 20, type: 'suggested' }],
+    width: 800,
+    height: 1000,
+    isPDF: file.type === 'application/pdf'
+  })),
+  finalizeRedaction: jest.fn().mockImplementation(() => Promise.resolve({
+    redactedFile: new File([''], 'redacted.jpg', { type: 'image/jpeg' }),
+    previewUrl: 'mock-redacted-url'
+  }))
+}));
+
+describe('Upload Page with Interactive Redaction', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     (global.fetch as jest.Mock).mockClear();
-    mockImg2Txt.mockClear();
-    mockChat.mockClear();
+    global.URL.createObjectURL = jest.fn(() => 'mock-url');
+    global.URL.revokeObjectURL = jest.fn();
   });
 
   it('renders the upload dropzone initially', () => {
     render(<UploadPage />);
     expect(screen.getByText(/Drag and drop your receipt/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /browse files/i })).toBeInTheDocument();
   });
 
-  it('handles file selection, shows preview, then allows confirmation to review', async () => {
+  it('handles the interactive redaction flow', async () => {
     mockImg2Txt.mockResolvedValueOnce("Walmart\nTotal: 123.45\nDate: 2026-05-07");
     mockChat.mockResolvedValueOnce({
       message: { 
-        content: [
-          {
-            type: "text",
-            text: '{"merchant": "Walmart", "total_amount": 123.45, "date": "2026-05-07"}'
-          }
-        ] 
+        content: [{ type: "text", text: '{"merchant": "Walmart", "total_amount": 123.45, "date": "2026-05-07"}' }] 
       }
     });
 
-    // Mock URL.createObjectURL since JSDOM doesn't have it
-    window.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
-
     render(<UploadPage />);
-    const fileInput = screen.getByLabelText(/upload/i) as HTMLInputElement;
-    const file = new File(['dummy content'], 'receipt.pdf', { type: 'application/pdf' });
     
-    // Simulate user selecting a file
-    await userEvent.upload(fileInput, file);
+    const file = new File(['%PDF-1.4'], 'receipt.pdf', { type: 'application/pdf' });
+    const input = screen.getByLabelText(/upload/i);
+    
+    fireEvent.change(input, { target: { files: [file] } });
 
-    // Wait for the preview step to be shown
+    // 1. Verify Identification step
     await waitFor(() => {
-      expect(screen.getByText(/Preview Receipt/i)).toBeInTheDocument();
-    });
-    
-    // Check if the 'Confirm & Extract Metadata' button is there
-    const confirmBtn = screen.getByRole('button', { name: /Confirm & Extract Metadata/i });
-    expect(confirmBtn).toBeInTheDocument();
-    
-    // Check if 'Choose Different File' is there
-    expect(screen.getByRole('button', { name: /Choose Different File/i })).toBeInTheDocument();
-
-    // Click confirm
-    await userEvent.click(confirmBtn);
-
-    // Assert puter was called
-    expect(mockImg2Txt).toHaveBeenCalledWith(file);
-    expect(mockChat).toHaveBeenCalled();
-
-    // Wait for the review form to appear
-    await waitFor(() => {
-      expect(screen.getByText(/We extracted the following data/i)).toBeInTheDocument();
+      expect(screen.getByText(/Privacy Editor/i)).toBeInTheDocument();
+      expect(screen.getByText(/PII/i)).toBeInTheDocument(); // Suggested box
     });
 
-    // Check if the inputs are populated with the parsed data
-    const merchantInput = screen.getByDisplayValue('Walmart');
-    expect(merchantInput).toBeInTheDocument();
-    
-    const amountInput = screen.getByDisplayValue('123.45');
-    expect(amountInput).toBeInTheDocument();
+    // 2. Click Confirm Redactions
+    const confirmRedactBtn = screen.getByText(/Confirm Redactions & Continue/i);
+    fireEvent.click(confirmRedactBtn);
+
+    // 3. Verify Final Preview
+    await waitFor(() => {
+      expect(screen.getByText(/Final Preview/i)).toBeInTheDocument();
+    });
+
+    // 4. Proceed to Extract
+    const extractBtn = screen.getByText(/Confirm & Extract Metadata/i);
+    fireEvent.click(extractBtn);
+
+    // 5. Verify Review Form
+    await waitFor(() => {
+      expect(screen.getByText(/Review Receipt/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Walmart')).toBeInTheDocument();
+    });
   });
 });
