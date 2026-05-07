@@ -87,8 +87,21 @@ npm run test
 ---
 
 ## Key Features
-- **Smart Upload Interface**: Drag and drop PDF receipts.
-- **AI-Powered Parsing**: Extracts Merchant, Date, and Total Amount automatically using Puter.js AI OCR.
-- **Review & Categorize**: Users can assign categories to expenses before confirming the save.
+
+- **Privacy-First (Zero-Knowledge) Model**: All PII redaction happens entirely in the browser. No sensitive data like SSNs or Account Numbers ever leaves your machine.
+- **Interactive Privacy Editor**: Review AI-suggested redactions or manually mask sensitive areas with a custom-built crosshair drawing tool.
+- **Context-Aware PII Detection**: Smart heuristic engine that differentiates between sensitive data (SSNs, DOBs) and benign metadata (transaction dates, IDs) to prevent over-redaction.
+- **Smart Upload Interface**: Drag and drop PDF and Image receipts with instant format-preserving sanitation.
+- **AI-Powered Parsing**: Extracts Merchant, Date, and Total Amount automatically using Puter.js AI OCR after privacy protection is applied.
 - **Analytics Dashboard**: Visualize spending over time and categorical breakdowns using animated Recharts.
 - **Premium UI/UX**: Designed with Gitlab and Voya color themes, incorporating glassmorphism and modern web aesthetics.
+
+---
+
+## 🔒 Privacy & Security
+
+Smart Vault is designed with a **Zero-Knowledge** architecture for personal data:
+- **Local OCR**: Uses Tesseract.js to identify text locally.
+- **Format-Preserving Redaction**: Redacts PDFs into sanitized PDFs and Images into sanitized Images before they are transmitted to any backend or AI API.
+- **Keyword Gating**: Contextual patterns (like SSNs and DOBs) are only masked if relevant labels are detected, ensuring your receipt remains readable for business purposes while protecting your identity.
+- **Client-Side Generation**: Final document assembly is performed via `jsPDF` entirely in the client's memory.
