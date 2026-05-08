@@ -1,12 +1,12 @@
 import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 class ReceiptBase(BaseModel):
-    merchant: Optional[str] = None
-    total_amount: Optional[float] = None
+    merchant: Optional[str] = Field(None, max_length=255)
+    total_amount: Optional[float] = Field(None, ge=0)
     date: Optional[datetime.date] = None
-    category: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=100)
 
 class ReceiptCreate(ReceiptBase):
     pass

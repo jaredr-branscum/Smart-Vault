@@ -23,6 +23,11 @@ export async function identifyPII(file: File): Promise<{
   height: number; 
   isPDF: boolean 
 }> {
+  // Security check: Limit file size to 10MB to prevent browser DoS
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('File too large. Maximum size is 10MB.');
+  }
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get canvas context');

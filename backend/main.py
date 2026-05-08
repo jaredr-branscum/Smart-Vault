@@ -22,6 +22,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 @app.post("/receipts", response_model=schemas.ReceiptOut)
 def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(get_db)):
     db_receipt = models.Receipt(**receipt.model_dump())
@@ -39,7 +48,7 @@ def read_receipts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 def get_analytics(
     start_date: datetime.date = None,
     end_date: datetime.date = None,
-    categories: List[str] = Query(None),
+    categories: List[str] = Query(None, max_length=10), # Prevent extremely long lists
     db: Session = Depends(get_db)
 ):
     # Base query for totals
