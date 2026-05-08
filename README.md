@@ -92,7 +92,7 @@ npm run test
 - **Interactive Privacy Editor**: Review AI-suggested redactions or manually mask sensitive areas with a custom-built crosshair drawing tool.
 - **Context-Aware PII Detection**: Smart heuristic engine that differentiates between sensitive data (SSNs, DOBs) and benign metadata (transaction dates, IDs) to prevent over-redaction.
 - **Smart Upload Interface**: Drag and drop PDF and Image receipts with instant format-preserving sanitation.
-- **AI-Powered Parsing**: Extracts Merchant, Date, and Total Amount automatically using Puter.js AI OCR after privacy protection is applied.
+- **AI-Powered Parsing**: Extracts relevant receipt metadata using Puter.js AI OCR after privacy protection is applied.
 - **Analytics Dashboard**: Visualize spending over time and categorical breakdowns using animated Recharts.
 - **Premium UI/UX**: Designed with Gitlab and Voya color themes, incorporating glassmorphism and modern web aesthetics.
 
