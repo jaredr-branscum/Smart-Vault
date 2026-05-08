@@ -14,7 +14,7 @@ export default function Home() {
           Smart Vault
         </h1>
         <p className="text-xl md:text-2xl text-[var(--foreground)] opacity-80 mb-12 max-w-2xl mx-auto leading-relaxed">
-          Your intelligent digital receipt organizer. Upload, parse, and track your expenses effortlessly.
+          Your intelligent digital receipt archivist. Upload, parse, and track your expenses effortlessly.
         </p>
 
         {/* Glassmorphism Card */}
@@ -27,8 +27,8 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-col gap-4">
-              <Link 
-                href="/upload" 
+              <Link
+                href="/upload"
                 className="group relative flex items-center justify-center px-8 py-4 bg-gradient-to-r from-[var(--color-gitlab-orange)] to-[#e24329] text-white font-bold rounded-full overflow-hidden shadow-[0_0_15px_rgba(252,109,38,0.4)] transition-all hover:shadow-[0_0_25px_rgba(252,109,38,0.7)]"
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
@@ -37,8 +37,8 @@ export default function Home() {
                   Upload Receipt
                 </span>
               </Link>
-              <Link 
-                href="/dashboard" 
+              <Link
+                href="/dashboard"
                 className="px-8 py-4 bg-transparent border-2 border-[var(--color-voya-mint)] text-[var(--foreground)] font-bold rounded-full transition-all hover:bg-[var(--color-voya-mint)] hover:text-white hover:border-transparent shadow-lg text-center"
               >
                 View Analytics Dashboard

@@ -26,6 +26,11 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER:-vaultadmin}:${DB_PASSWORD:-vaultpassword}@db:5432/${DB_NAME:-smartvault}
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000
+      S3_ENDPOINT_URL: http://localstack:4566
+      S3_PUBLIC_URL_OVERRIDE: http://localhost:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +39,9 @@ services:
       - frontend-net
     ports:
       - "8000:8000"
+    volumes:
+      # Persist migrations on the host so they aren't lost when containers are recreated
+      - "./backend/alembic/versions:/app/alembic/versions"
 
   frontend:
     build:
@@ -50,10 +58,24 @@ services:
     ports:
       - "3000:3000"
 
+  localstack:
+    image: localstack/localstack:3.0.0
+    container_name: smart-vault-storage
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+      - DEBUG=1
+    volumes:
+      - "./infrastructure/localstack_init:/etc/localstack/init/ready.d"
+    networks:
+      - backend-net
+      - frontend-net
+
 volumes:
   postgres_data:
 
 networks:
   backend-net:
-    internal: true # Security: DB and Backend communication is private
   frontend-net:

@@ -13,5 +13,6 @@ class ReceiptCreate(ReceiptBase):
 
 class ReceiptOut(ReceiptBase):
     id: int
+    file_path: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

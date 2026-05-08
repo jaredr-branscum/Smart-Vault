@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import func
@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 from typing import List
 import datetime
 import os
-
-import models
-import schemas
-from database import engine, get_db
+import json
+import uuid
 import logging
+
+import models, schemas
+from database import engine, get_db
+from s3_service import s3_service
 
 # Security/Scalability: Standardized logging for distributed environments
 logging.basicConfig(
@@ -59,12 +61,54 @@ app.add_middleware(
 )
 
 @app.post("/receipts", response_model=schemas.ReceiptOut)
-def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(get_db)):
-    db_receipt = models.Receipt(**receipt.model_dump())
+async def create_receipt(
+    metadata: str = Form(...), # Sent as JSON string in form field
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # Note: We manually parse metadata from a Form field because the browser sends 
+    # the receipt as multipart/form-data to support physical file uploads.
+    try:
+        data = json.loads(metadata)
+        receipt_data = schemas.ReceiptCreate(**data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid metadata JSON string")
+    except Exception as e:
+        # Pydantic validation errors or others
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # 1. Generate a unique key for S3
+    file_extension = os.path.splitext(file.filename)[1]
+    object_key = f"{uuid.uuid4()}{file_extension}"
+
+    # 2. Upload to LocalStack S3
+    if not s3_service.upload_file(file.file, object_key, content_type=file.content_type):
+        raise HTTPException(status_code=500, detail="Failed to store document in vault")
+
+    # 3. Save to DB with S3 Key
+    db_receipt = models.Receipt(
+        merchant=receipt_data.merchant,
+        total_amount=receipt_data.total_amount,
+        date=receipt_data.date,
+        category=receipt_data.category,
+        file_path=object_key # Storing the S3 Key here
+    )
     db.add(db_receipt)
     db.commit()
     db.refresh(db_receipt)
     return db_receipt
+
+@app.get("/receipts/{receipt_id}/view-url")
+def get_receipt_view_url(receipt_id: int, db: Session = Depends(get_db)):
+    db_receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
+    if not db_receipt or not db_receipt.file_path:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    url = s3_service.generate_presigned_url(db_receipt.file_path)
+    if not url:
+        raise HTTPException(status_code=500, detail="Failed to generate secure access link")
+    
+    return {"url": url}
 
 @app.get("/receipts", response_model=List[schemas.ReceiptOut])
 def read_receipts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

@@ -142,15 +142,21 @@ export default function UploadPage() {
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const fileToUpload = redactedFile || selectedFile;
+      if (!fileToUpload) throw new Error('No file available for upload.');
+
+      const formData = new FormData();
+      formData.append('metadata', JSON.stringify({
+        merchant: parsedData.merchant,
+        total_amount: parseFloat(parsedData.total_amount),
+        date: parsedData.date,
+        category: parsedData.category
+      }));
+      formData.append('file', fileToUpload);
+
       const response = await fetch(`${apiUrl}/receipts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          merchant: parsedData.merchant,
-          total_amount: parseFloat(parsedData.total_amount),
-          date: parsedData.date,
-          category: parsedData.category
-        }),
+        body: formData,
       });
 
       if (!response.ok) throw new Error('Failed to save the receipt.');

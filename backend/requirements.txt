@@ -8,3 +8,5 @@ httpx
 pydantic
 gunicorn
 alembic
+boto3
+python-multipart

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Smart Vault",
-  description: "Intelligent digital receipt organizer",
+  description: "Intelligent digital receipt archivist",
 };
 
 export default function RootLayout({

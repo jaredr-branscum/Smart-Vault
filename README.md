@@ -1,6 +1,6 @@
 # Smart Vault
 
-Smart Vault is an intelligent digital receipt organizer. It allows users to upload PDF receipts, extracts relevant metadata (merchant, total amount, date), and provides an analytics dashboard to track expenses over time and by category.
+Smart Vault is an intelligent digital receipt archivist. It allows users to upload PDF receipts, extracts relevant metadata (merchant, total amount, date), and provides an analytics dashboard to track expenses over time and by category.
 
 ![Landing Page](Landing_Page.png)
 

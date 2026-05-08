@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Date
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime
+from sqlalchemy.sql import func
 from database import Base
 
 class Receipt(Base):
@@ -9,3 +10,5 @@ class Receipt(Base):
     total_amount = Column(Float)
     date = Column(Date, index=True)
     category = Column(String, index=True, nullable=True)
+    file_path = Column(String, nullable=True) # Path to stored document
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
