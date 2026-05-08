@@ -23,27 +23,40 @@ logger = logging.getLogger("smart-vault")
 app = FastAPI(title="Smart Vault API")
 
 # Security: Strictly define allowed origins in production
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
-    allow_headers=["Content-Type", "Authorization"],
-)
-
-# Performance: Compress large JSON responses
-app.add_middleware(GZipMiddleware, minimum_size=500)
-
+# Security Headers Middleware (Inner)
+# Using a simple function to avoid BaseHTTPMiddleware known issues with CORS preflight
 @app.middleware("http")
 async def add_security_headers(request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    
     response = await call_next(request)
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "img-src 'self' data: fastapi.tiangolo.com; "
+        "connect-src 'self' cdn.jsdelivr.net;"
+    )
     return response
+
+# Performance Middleware (Middle)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# CORS Middleware (Outer - Must be added LAST in FastAPI to run FIRST)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 @app.post("/receipts", response_model=schemas.ReceiptOut)
 def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(get_db)):
@@ -57,6 +70,16 @@ def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(get_db)
 def read_receipts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     receipts = db.query(models.Receipt).offset(skip).limit(limit).all()
     return receipts
+
+@app.delete("/receipts/{receipt_id}")
+async def delete_receipt(receipt_id: int, db: Session = Depends(get_db)):
+    receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    
+    db.delete(receipt)
+    db.commit()
+    return {"message": "Receipt deleted"}
 
 @app.get("/analytics")
 def get_analytics(

@@ -25,7 +25,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://${DB_USER:-vaultadmin}:${DB_PASSWORD:-vaultpassword}@db:5432/${DB_NAME:-smartvault}
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000
     depends_on:
       db:
         condition: service_healthy
