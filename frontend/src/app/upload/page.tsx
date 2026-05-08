@@ -71,7 +71,7 @@ export default function UploadPage() {
       setStep('redact');
     } catch (err: any) {
       console.error('Security scan failed:', err);
-      setError('Security scanning failed. Please try again with a clearer file.');
+      setError(err.message || 'Security scanning failed. Please try again with a clearer file.');
       setStep('upload');
     } finally {
       setIsSecuring(false);

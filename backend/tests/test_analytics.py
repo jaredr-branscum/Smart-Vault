@@ -63,3 +63,19 @@ def test_get_analytics_with_category_filter():
     data = response.json()
     assert data["total_expenses"] == 350.0  # Walmart + Target + Amazon
     assert "Travel" not in data["by_category"]
+
+def test_get_analytics_empty_range():
+    # Filter for future dates
+    response = client.get("/analytics?start_date=2027-01-01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_expenses"] == 0.0
+    assert data["by_category"] == {}
+    assert data["receipts"] == []
+
+def test_get_analytics_no_matching_categories():
+    response = client.get("/analytics?categories=Entertainment")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_expenses"] == 0.0
+    assert data["by_category"] == {}

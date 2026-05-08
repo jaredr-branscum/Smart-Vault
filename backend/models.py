@@ -7,5 +7,5 @@ class Receipt(Base):
     id = Column(Integer, primary_key=True, index=True)
     merchant = Column(String, index=True)
     total_amount = Column(Float)
-    date = Column(Date)
+    date = Column(Date, index=True)
     category = Column(String, index=True, nullable=True)

@@ -64,6 +64,28 @@ The frontend application will be available at [http://localhost:3000](http://loc
 
 ---
 
+## 🐳 Docker Setup (Production-Ready)
+
+For a fully isolated and production-ready environment using **PostgreSQL**, use Docker Compose.
+
+1. **Create Environment File**:
+   Copy `.env.example` to `.env` and update the `DB_PASSWORD`.
+2. **Build and Run**:
+   ```cmd
+   docker-compose up --build -d
+   ```
+3. **Verify**:
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - Backend API: [http://localhost:8000](http://localhost:8000)
+   - Database: Isolated within the `backend-net` Docker network.
+
+**Security Controls in Docker:**
+- **Non-Root Execution**: Both frontend and backend run as non-privileged users (`nextjs` and `smartuser`).
+- **Network Isolation**: The PostgreSQL database is placed on an `internal` network, making it inaccessible from outside the Docker cluster.
+- **Multi-Stage Builds**: Frontend builds use multi-stage layers to ensure source code and build tools are not included in the final production image.
+
+---
+
 ## Testing (Test-Driven Development)
 
 This project strictly adheres to Test-Driven Development (TDD) principles.

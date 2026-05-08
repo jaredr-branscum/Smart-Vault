@@ -51,9 +51,22 @@ export async function identifyPII(file: File): Promise<{
       img.onerror = reject;
       img.src = objectUrl;
     });
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
+
+    // Performance Optimization: Downscale massive images (e.g., from modern phones)
+    // 1600px width is plenty for high-accuracy receipt OCR.
+    const MAX_WIDTH = 1600;
+    let targetWidth = img.width;
+    let targetHeight = img.height;
+
+    if (targetWidth > MAX_WIDTH) {
+      const scale = MAX_WIDTH / targetWidth;
+      targetWidth = MAX_WIDTH;
+      targetHeight = img.height * scale;
+    }
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
     URL.revokeObjectURL(objectUrl);
   }
 

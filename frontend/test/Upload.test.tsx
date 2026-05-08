@@ -79,10 +79,25 @@ describe('Upload Page with Interactive Redaction', () => {
     const extractBtn = screen.getByText(/Confirm & Extract Metadata/i);
     fireEvent.click(extractBtn);
 
-    // 5. Verify Review Form
     await waitFor(() => {
       expect(screen.getByText(/Review Receipt/i)).toBeInTheDocument();
       expect(screen.getByDisplayValue('Walmart')).toBeInTheDocument();
+    });
+  });
+
+  it('displays an error when a file is too large', async () => {
+    const { identifyPII } = require('@/lib/security');
+    identifyPII.mockImplementationOnce(() => Promise.reject(new Error('File too large. Maximum size is 10MB.')));
+
+    render(<UploadPage />);
+    
+    const largeFile = new File([new ArrayBuffer(11 * 1024 * 1024)], 'huge.jpg', { type: 'image/jpeg' });
+    const input = screen.getByLabelText(/upload/i);
+    
+    fireEvent.change(input, { target: { files: [largeFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/File too large/i)).toBeInTheDocument();
     });
   });
 });

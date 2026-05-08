@@ -1,26 +1,40 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 import datetime
+import os
 
 import models
 import schemas
 from database import engine, get_db
+import logging
 
-# Create DB tables
-models.Base.metadata.create_all(bind=engine)
+# Security/Scalability: Standardized logging for distributed environments
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger("smart-vault")
 
 app = FastAPI(title="Smart Vault API")
 
+# Security: Strictly define allowed origins in production
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For PoC
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"], # Limit methods
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+# Performance: Compress large JSON responses
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):

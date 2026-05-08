@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: smart-vault-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-smartvault}
+      POSTGRES_USER: ${DB_USER:-vaultadmin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vaultpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-vault-backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-vaultadmin}:${DB_PASSWORD:-vaultpassword}@db:5432/${DB_NAME:-smartvault}
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend-net
+      - frontend-net
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-vault-frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - frontend-net
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+
+networks:
+  backend-net:
+    internal: true # Security: DB and Backend communication is private
+  frontend-net:
