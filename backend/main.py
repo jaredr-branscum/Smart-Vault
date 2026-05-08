@@ -15,6 +15,7 @@ import models, schemas
 from database import engine, get_db
 from s3_service import s3_service
 from logging_config import configure_logging
+from auth import get_current_user
 
 # Structured JSON logging — compatible with Datadog, CloudWatch Logs, Splunk, etc.
 configure_logging()
@@ -65,7 +66,8 @@ app.add_middleware(
 async def create_receipt(
     metadata: str = Form(...), # Sent as JSON string in form field
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user)
 ):
     # Note: We manually parse metadata from a Form field because the browser sends 
     # the receipt as multipart/form-data to support physical file uploads.
@@ -100,7 +102,11 @@ async def create_receipt(
     return db_receipt
 
 @app.get("/receipts/{receipt_id}/view-url")
-def get_receipt_view_url(receipt_id: int, db: Session = Depends(get_db)):
+def get_receipt_view_url(
+    receipt_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user)
+):
     db_receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
     if not db_receipt or not db_receipt.file_path:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -112,12 +118,21 @@ def get_receipt_view_url(receipt_id: int, db: Session = Depends(get_db)):
     return {"url": url}
 
 @app.get("/receipts", response_model=List[schemas.ReceiptOut])
-def read_receipts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_receipts(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user)
+):
     receipts = db.query(models.Receipt).offset(skip).limit(limit).all()
     return receipts
 
 @app.delete("/receipts/{receipt_id}")
-async def delete_receipt(receipt_id: int, db: Session = Depends(get_db)):
+async def delete_receipt(
+    receipt_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user)
+):
     receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
@@ -131,7 +146,8 @@ def get_analytics(
     start_date: datetime.date = None,
     end_date: datetime.date = None,
     categories: List[str] = Query(None, max_length=10), # Prevent extremely long lists
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user)
 ):
     # Base query for totals
     total_query = db.query(func.sum(models.Receipt.total_amount))

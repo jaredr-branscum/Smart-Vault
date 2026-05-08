@@ -12,3 +12,5 @@ boto3
 python-multipart
 python-json-logger
 prometheus-fastapi-instrumentator
+"python-jose[cryptography]"
+cryptography
