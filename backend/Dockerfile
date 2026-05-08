@@ -1,4 +1,3 @@
-# Use official slim Python image for smaller footprint and security
 FROM python:3.13-slim
 
 # Security: Set working directory
@@ -35,4 +34,4 @@ EXPOSE 8000
 ENTRYPOINT ["/app/prestart.sh"]
 
 # Start the application using Gunicorn with Uvicorn workers for scalability
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000", "--access-log", "-", "--error-log", "-"]
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-log", "-"]

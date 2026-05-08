@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Security/Scalability: Ensure database is ready before running migrations
 # This is usually handled by docker-compose depends_on healthchecks, 

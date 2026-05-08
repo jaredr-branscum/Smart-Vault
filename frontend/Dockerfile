@@ -1,4 +1,3 @@
-# Multi-stage build for optimized production image
 FROM node:20-slim AS base
 
 WORKDIR /app

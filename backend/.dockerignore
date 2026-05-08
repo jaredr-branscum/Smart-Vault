@@ -1,0 +1,15 @@
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db
+test.db
+.git
+.env
+Dockerfile
+# DO NOT IGNORE THESE - they are needed in the container
+# prestart.sh
+# migrate.py
+# alembic.ini
+# alembic/

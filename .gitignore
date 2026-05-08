@@ -1,19 +1,32 @@
+# Environment Files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 # Backend (Python)
 backend/venv/
-backend/.env
 **/__pycache__/
 **/*.pyc
 **/.pytest_cache/
 **/*.db
 **/*.sqlite
+backend/test_analytics.db
+backend/test_security.db
 
-# Mac/Windows
-.DS_Store
-Thumbs.db
-
-# Frontend
+# Frontend (Node/Next)
 frontend/node_modules/
 frontend/.next/
 frontend/.env*
 frontend/dist/
 frontend/out/
+
+# Docker
+docker-compose.override.yml
+
+# System Files
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
