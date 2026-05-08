@@ -73,8 +73,42 @@ services:
       - backend-net
       - frontend-net
 
+  # --- Observability Stack ---
+  # Prometheus: scrapes /metrics from the backend every 15s
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: smart-vault-prometheus
+    restart: always
+    volumes:
+      - "./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+    ports:
+      - "9090:9090"
+    networks:
+      - backend-net
+      - frontend-net
+
+  # Grafana: pre-provisioned with Prometheus datasource and API health dashboard
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: smart-vault-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - "./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro"
+      - "./infrastructure/grafana/dashboards:/etc/grafana/dashboards:ro"
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - frontend-net
+
 volumes:
   postgres_data:
+  grafana_data:
 
 networks:
   backend-net:

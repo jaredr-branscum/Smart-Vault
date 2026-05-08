@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
@@ -13,16 +14,16 @@ import logging
 import models, schemas
 from database import engine, get_db
 from s3_service import s3_service
+from logging_config import configure_logging
 
-# Security/Scalability: Standardized logging for distributed environments
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+# Structured JSON logging — compatible with Datadog, CloudWatch Logs, Splunk, etc.
+configure_logging()
 logger = logging.getLogger("smart-vault")
 
 app = FastAPI(title="Smart Vault API")
+
+# Prometheus metrics — exposes /metrics endpoint for Grafana scraping
+Instrumentator().instrument(app).expose(app)
 
 # Security: Strictly define allowed origins in production
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")

@@ -1,0 +1,58 @@
+{
+  "title": "Smart Vault — API Health",
+  "uid": "smart-vault-api",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"smart-vault-backend\"}[1m])",
+          "legendFormat": "{{method}} {{handler}} {{status_code}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Request Latency P99 (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"smart-vault-backend\"}[1m])) * 1000",
+          "legendFormat": "P99 — {{handler}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Rate (5xx)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"smart-vault-backend\", status_code=~\"5..\"}[1m])",
+          "legendFormat": "5xx — {{handler}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Requests In-Flight",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "http_requests_inprogress{job=\"smart-vault-backend\"}",
+          "legendFormat": "In-Flight Requests"
+        }
+      ]
+    }
+  ]
+}
