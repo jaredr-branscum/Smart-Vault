@@ -16,37 +16,21 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // All hooks must be declared before any conditional returns (Rules of Hooks)
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<{ id: number, merchant: string } | null>(null);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       signIn('keycloak');
     }
   }, [status]);
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full border-4 border-[var(--color-voya-mint)] border-t-transparent animate-spin mb-4"></div>
-          <p className="text-[var(--foreground)]/60 font-medium">Validating Session...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) return null;
-
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Date filters
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
-
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<{ id: number, merchant: string } | null>(null);
 
   const openDrawer = (id: number, merchant: string) => {
     setSelectedReceipt({ id, merchant });
@@ -54,7 +38,7 @@ export default function DashboardPage() {
   };
 
   const fetchAnalytics = async () => {
-    if (status !== 'authenticated') return;
+    if (status !== 'authenticated' || !session) return;
     setIsLoading(true);
     try {
       const res = await fetch(`${API_URL}/analytics?${new URLSearchParams({
@@ -95,7 +79,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [startDate, endDate]);
+  }, [status, startDate, endDate]);
+
+  // Conditional renders after all hooks
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-[var(--color-voya-mint)] border-t-transparent animate-spin mb-4"></div>
+          <p className="text-[var(--foreground)]/60 font-medium">Validating Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
 
   if (isLoading && !data) {
     return (

@@ -9,7 +9,7 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000
 /**
  * Helper to ensure consistent Authorization header formatting.
  */
-export const getAuthHeaders = (token: string | null) => {
+export const getAuthHeaders = (token: string | null | undefined): Record<string, string> => {
   if (!token) return {};
   return {
     'Authorization': `Bearer ${token}`
