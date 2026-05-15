@@ -211,7 +211,8 @@ export default function DashboardPage() {
                     </Pie>
                     <RechartsTooltip 
                        contentStyle={{ backgroundColor: 'var(--background)', borderColor: 'var(--color-voya-mint)', borderRadius: '12px', color: 'var(--foreground)' }}
-                       itemStyle={{ fontWeight: 'bold' }}
+                       itemStyle={{ color: 'var(--foreground)', fontWeight: 'bold' }}
+                       labelStyle={{ color: 'var(--foreground)' }}
                        formatter={(value: number) => `$${value.toFixed(2)}`}
                     />
                   </PieChart>
