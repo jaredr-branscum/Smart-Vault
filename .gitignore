@@ -30,3 +30,4 @@ docker-compose.override.yml
 Thumbs.db
 *.bak
 *.tmp
+backend/package-lock.json

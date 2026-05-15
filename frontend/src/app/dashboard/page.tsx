@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
+import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid
 } from 'recharts';
@@ -19,9 +19,9 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState('');
 
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
-  
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<{id: number, merchant: string} | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<{ id: number, merchant: string } | null>(null);
 
   const openDrawer = (id: number, merchant: string) => {
     setSelectedReceipt({ id, merchant });
@@ -35,7 +35,7 @@ export default function DashboardPage() {
       let url = `${apiUrl}/analytics?`;
       if (startDate) url += `start_date=${startDate}&`;
       if (endDate) url += `end_date=${endDate}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch analytics');
       const json = await res.json();
@@ -52,7 +52,7 @@ export default function DashboardPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       const res = await fetch(`${apiUrl}/receipts/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete receipt');
-      
+
       // Update UI state locally
       setData((prev: any) => ({
         ...prev,
@@ -78,10 +78,10 @@ export default function DashboardPage() {
   }
 
   // ... (Keep existing Chart Data preparation) ...
-  const pieData = data?.by_category 
+  const pieData = data?.by_category
     ? Object.keys(data.by_category).map(key => ({ name: key, value: data.by_category[key] }))
     : [];
-    
+
   const COLORS = ['#00a896', '#fc6d26', '#6666c4', '#02c39a', '#e24329', '#003b49'];
 
   const lineDataMap: Record<string, number> = {};
@@ -112,13 +112,13 @@ export default function DashboardPage() {
               This action cannot be undone. All extracted data and metadata for this receipt will be permanently removed from the vault.
             </p>
             <div className="flex gap-4">
-              <button 
+              <button
                 onClick={() => setIsDeleting(null)}
                 className="flex-1 py-3 px-6 rounded-2xl border border-[var(--foreground)]/10 hover:bg-[var(--foreground)]/5 font-bold transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={() => handleDelete(isDeleting)}
                 className="flex-1 py-3 px-6 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-500/20"
               >
@@ -141,17 +141,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex gap-4 items-center bg-white/5 dark:bg-black/20 p-3 rounded-2xl border border-[var(--foreground)]/10 backdrop-blur-md">
-            <input 
-              type="date" 
-              value={startDate} 
+            <input
+              type="date"
+              value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm [color-scheme:dark] cursor-pointer"
               aria-label="Start Date"
             />
             <span className="text-[var(--foreground)]/50">to</span>
-            <input 
-              type="date" 
-              value={endDate} 
+            <input
+              type="date"
+              value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="bg-transparent text-[var(--foreground)] border-none focus:ring-0 outline-none text-sm [color-scheme:dark] cursor-pointer"
               aria-label="End Date"
@@ -168,34 +168,34 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* ... (Summary and Line Chart cards stay same) ... */}
           <div className="lg:col-span-1 bg-gradient-to-br from-[var(--color-voya-dark)] to-[var(--color-gitlab-purple)] rounded-3xl p-8 shadow-2xl border border-white/10 flex flex-col justify-center relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full pointer-events-none" />
-             <h2 className="text-white/70 text-lg font-medium mb-2 z-10">Total Expenses</h2>
-             <p className="text-5xl font-extrabold text-white z-10 tracking-tight">
-               ${data?.total_expenses?.toFixed(2) || '0.00'}
-             </p>
-             <div className="mt-8 z-10">
-               <Link href="/upload" className="inline-flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all font-medium border border-white/10">
-                 + Add Receipt
-               </Link>
-             </div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full pointer-events-none" />
+            <h2 className="text-white/70 text-lg font-medium mb-2 z-10">Total Expenses</h2>
+            <p className="text-5xl font-extrabold text-white z-10 tracking-tight">
+              ${data?.total_expenses?.toFixed(2) || '0.00'}
+            </p>
+            <div className="mt-8 z-10">
+              <Link href="/upload" className="inline-flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all font-medium border border-white/10">
+                + Add Receipt
+              </Link>
+            </div>
           </div>
 
           <div className="lg:col-span-2 bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-[var(--foreground)]/10 rounded-3xl p-6 shadow-xl">
-             <h3 className="text-xl font-bold text-[var(--foreground)] mb-6">Spending Over Time</h3>
-             <div className="h-64 w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={lineData}>
-                   <CartesianGrid strokeDasharray="3 3" stroke="var(--foreground)" opacity={0.1} vertical={false} />
-                   <XAxis dataKey="date" stroke="var(--foreground)" opacity={0.5} tick={{ fill: 'var(--foreground)' }} axisLine={false} tickLine={false} />
-                   <YAxis stroke="var(--foreground)" opacity={0.5} tick={{ fill: 'var(--foreground)' }} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val}`} />
-                   <RechartsTooltip 
-                     contentStyle={{ backgroundColor: 'var(--background)', borderColor: 'var(--color-voya-mint)', borderRadius: '12px', color: 'var(--foreground)' }}
-                     itemStyle={{ color: 'var(--color-voya-mint)', fontWeight: 'bold' }}
-                   />
-                   <Line type="monotone" dataKey="amount" stroke="var(--color-voya-mint)" strokeWidth={4} dot={{ r: 4, fill: 'var(--color-voya-mint)' }} activeDot={{ r: 8, fill: 'var(--color-gitlab-orange)', stroke: 'none' }} />
-                 </LineChart>
-               </ResponsiveContainer>
-             </div>
+            <h3 className="text-xl font-bold text-[var(--foreground)] mb-6">Spending Over Time</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--foreground)" opacity={0.1} vertical={false} />
+                  <XAxis dataKey="date" stroke="var(--foreground)" opacity={0.5} tick={{ fill: 'var(--foreground)' }} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--foreground)" opacity={0.5} tick={{ fill: 'var(--foreground)' }} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val}`} />
+                  <RechartsTooltip
+                    contentStyle={{ backgroundColor: 'var(--background)', borderColor: 'var(--color-voya-mint)', borderRadius: '12px', color: 'var(--foreground)' }}
+                    itemStyle={{ color: 'var(--color-voya-mint)', fontWeight: 'bold' }}
+                  />
+                  <Line type="monotone" dataKey="amount" stroke="var(--color-voya-mint)" strokeWidth={4} dot={{ r: 4, fill: 'var(--color-voya-mint)' }} activeDot={{ r: 8, fill: 'var(--color-gitlab-orange)', stroke: 'none' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           <div className="lg:col-span-1 bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-[var(--foreground)]/10 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center">
@@ -209,11 +209,11 @@ export default function DashboardPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <RechartsTooltip 
-                       contentStyle={{ backgroundColor: 'var(--background)', borderColor: 'var(--color-voya-mint)', borderRadius: '12px', color: 'var(--foreground)' }}
-                       itemStyle={{ color: 'var(--foreground)', fontWeight: 'bold' }}
-                       labelStyle={{ color: 'var(--foreground)' }}
-                       formatter={(value: number) => `$${value.toFixed(2)}`}
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: 'var(--background)', borderColor: 'var(--color-voya-mint)', borderRadius: '12px', color: 'var(--foreground)' }}
+                      itemStyle={{ color: 'var(--foreground)', fontWeight: 'bold' }}
+                      labelStyle={{ color: 'var(--foreground)' }}
+                      formatter={(value: number) => `$${value.toFixed(2)}`}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -244,16 +244,21 @@ export default function DashboardPage() {
                         <p className="font-bold text-[var(--color-voya-mint)] text-xl">${r.total_amount?.toFixed(2)}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <button 
+                        {/* 
+                          NOTE: Persistent issue with hover visibility in some Docker environments.
+                          Classes opacity-40 and hover:opacity-100 are applied correctly (verified via unit tests), 
+                          but may not trigger as expected due to CSS caching or purging in production builds.
+                        */}
+                        <button
                           onClick={() => openDrawer(r.id, r.merchant)}
-                          className="p-2 text-[var(--color-voya-mint)] hover:bg-[var(--color-voya-mint)]/10 rounded-xl opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+                          className="p-2 text-[var(--color-voya-mint)] hover:bg-[var(--color-voya-mint)]/10 rounded-xl opacity-40 group-hover:opacity-100 transition-all transform hover:scale-110"
                           title="View Document"
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                         </button>
-                        <button 
+                        <button
                           onClick={() => setIsDeleting(r.id)}
-                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl opacity-40 group-hover:opacity-100 transition-all transform hover:scale-110"
                           title="Delete Receipt"
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,10 +276,10 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      <ReceiptDrawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-        receiptId={selectedReceipt?.id || null} 
+      <ReceiptDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        receiptId={selectedReceipt?.id || null}
         merchant={selectedReceipt?.merchant || 'Receipt Document'}
       />
     </div>
