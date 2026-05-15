@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession, signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -8,8 +10,31 @@ import {
 } from 'recharts';
 
 import ReceiptDrawer from '@/components/ReceiptDrawer';
+import { API_URL, getAuthHeaders } from '@/lib/api';
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      signIn('keycloak');
+    }
+  }, [status]);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-[var(--color-voya-mint)] border-t-transparent animate-spin mb-4"></div>
+          <p className="text-[var(--foreground)]/60 font-medium">Validating Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
+
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +54,15 @@ export default function DashboardPage() {
   };
 
   const fetchAnalytics = async () => {
+    if (status !== 'authenticated') return;
     setIsLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      let url = `${apiUrl}/analytics?`;
-      if (startDate) url += `start_date=${startDate}&`;
-      if (endDate) url += `end_date=${endDate}`;
-
-      const res = await fetch(url);
+      const res = await fetch(`${API_URL}/analytics?${new URLSearchParams({
+        ...(startDate && { start_date: startDate }),
+        ...(endDate && { end_date: endDate }),
+      })}`, {
+        headers: getAuthHeaders((session as any)?.accessToken)
+      });
       if (!res.ok) throw new Error('Failed to fetch analytics');
       const json = await res.json();
       setData(json);
@@ -49,8 +75,10 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${apiUrl}/receipts/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/receipts/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders((session as any)?.accessToken)
+      });
       if (!res.ok) throw new Error('Failed to delete receipt');
 
       // Update UI state locally
@@ -281,6 +309,7 @@ export default function DashboardPage() {
         onClose={() => setIsDrawerOpen(false)}
         receiptId={selectedReceipt?.id || null}
         merchant={selectedReceipt?.merchant || 'Receipt Document'}
+        token={(session as any)?.accessToken}
       />
     </div>
   );

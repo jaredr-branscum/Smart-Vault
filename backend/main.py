@@ -17,20 +17,18 @@ from s3_service import s3_service
 from logging_config import configure_logging
 from auth import get_current_user
 
+from config import settings
+
 # Structured JSON logging — compatible with Datadog, CloudWatch Logs, Splunk, etc.
 configure_logging()
 logger = logging.getLogger("smart-vault")
 
-app = FastAPI(title="Smart Vault API")
+app = FastAPI(title=settings.PROJECT_NAME)
 
 # Prometheus metrics — exposes /metrics endpoint for Grafana scraping
 Instrumentator().instrument(app).expose(app)
 
-# Security: Strictly define allowed origins in production
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
-
-# Security Headers Middleware (Inner)
-# Using a simple function to avoid BaseHTTPMiddleware known issues with CORS preflight
+# Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     if request.method == "OPTIONS":
@@ -41,12 +39,17 @@ async def add_security_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    # Dynamic CSP based on environment settings
+    s3_host = settings.S3_PUBLIC_URL.replace("http://", "").replace("https://", "")
+    kc_host = settings.KEYCLOAK_URL.replace("http://", "").replace("https://", "")
+    
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
-        "img-src 'self' data: fastapi.tiangolo.com; "
-        "connect-src 'self' cdn.jsdelivr.net;"
+        f"img-src 'self' data: {s3_host}; " 
+        f"connect-src 'self' {kc_host} {s3_host};"
     )
     return response
 
@@ -56,7 +59,7 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # CORS Middleware (Outer - Must be added LAST in FastAPI to run FIRST)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -88,8 +91,9 @@ async def create_receipt(
     if not s3_service.upload_file(file.file, object_key, content_type=file.content_type):
         raise HTTPException(status_code=500, detail="Failed to store document in vault")
 
-    # 3. Save to DB with S3 Key
+    # 3. Save to DB with S3 Key and User ID
     db_receipt = models.Receipt(
+        user_id=_user["sub"],
         merchant=receipt_data.merchant,
         total_amount=receipt_data.total_amount,
         date=receipt_data.date,
@@ -107,7 +111,10 @@ def get_receipt_view_url(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user)
 ):
-    db_receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
+    db_receipt = db.query(models.Receipt).filter(
+        models.Receipt.id == receipt_id,
+        models.Receipt.user_id == _user["sub"]
+    ).first()
     if not db_receipt or not db_receipt.file_path:
         raise HTTPException(status_code=404, detail="Document not found")
     
@@ -124,7 +131,9 @@ def read_receipts(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user)
 ):
-    receipts = db.query(models.Receipt).offset(skip).limit(limit).all()
+    receipts = db.query(models.Receipt).filter(
+        models.Receipt.user_id == _user["sub"]
+    ).offset(skip).limit(limit).all()
     return receipts
 
 @app.delete("/receipts/{receipt_id}")
@@ -133,7 +142,10 @@ async def delete_receipt(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user)
 ):
-    receipt = db.query(models.Receipt).filter(models.Receipt.id == receipt_id).first()
+    receipt = db.query(models.Receipt).filter(
+        models.Receipt.id == receipt_id,
+        models.Receipt.user_id == _user["sub"]
+    ).first()
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
     
@@ -149,8 +161,8 @@ def get_analytics(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user)
 ):
-    # Base query for totals
-    total_query = db.query(func.sum(models.Receipt.total_amount))
+    # Base query for totals - Filter by User ID
+    total_query = db.query(func.sum(models.Receipt.total_amount)).filter(models.Receipt.user_id == _user["sub"])
     if start_date:
         total_query = total_query.filter(models.Receipt.date >= start_date)
     if end_date:
@@ -160,11 +172,11 @@ def get_analytics(
         
     total_expenses = total_query.scalar() or 0.0
 
-    # Category breakdown query
+    # Category breakdown query - Filter by User ID
     cat_query = db.query(
         models.Receipt.category, 
         func.sum(models.Receipt.total_amount)
-    ).group_by(models.Receipt.category)
+    ).filter(models.Receipt.user_id == _user["sub"]).group_by(models.Receipt.category)
     
     if start_date:
         cat_query = cat_query.filter(models.Receipt.date >= start_date)
@@ -175,8 +187,8 @@ def get_analytics(
         
     by_category = {cat: amt for cat, amt in cat_query.all() if cat}
 
-    # Fetch detailed receipts
-    receipts_query = db.query(models.Receipt)
+    # Fetch detailed receipts - Filter by User ID
+    receipts_query = db.query(models.Receipt).filter(models.Receipt.user_id == _user["sub"])
     if start_date:
         receipts_query = receipts_query.filter(models.Receipt.date >= start_date)
     if end_date:

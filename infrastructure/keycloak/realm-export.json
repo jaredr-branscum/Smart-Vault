@@ -1,52 +1,105 @@
 {
   "realm": "smart-vault",
   "enabled": true,
+  "displayName": "Smart Vault",
   "sslRequired": "external",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
   "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clientScopes": [
+    {
+      "name": "openid",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "subject",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ],
   "clients": [
     {
       "clientId": "smart-vault-app",
-      "name": "Smart Vault",
+      "name": "Smart Vault Frontend",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "secret": "${KEYCLOAK_CLIENT_SECRET:-dev-secret-change-in-prod}",
+      "secret": "dev-secret-change-in-prod",
       "redirectUris": [
         "http://localhost:3000/*",
-        "http://127.0.0.1:3000/*"
+        "https://*"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "https://*"
       ],
-      "defaultClientScopes": ["openid", "profile", "email"],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
       }
     }
   ],
-  "users": [
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Standard user role"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator role"
+      }
+    ]
+  },
+  "groups": [
     {
-      "username": "devuser",
-      "email": "dev@smartvault.local",
-      "firstName": "Dev",
-      "lastName": "User",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "password",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["default-roles-smart-vault"]
+      "name": "Standard Users",
+      "path": "/Standard Users",
+      "realmRoles": ["user"]
     }
   ]
 }

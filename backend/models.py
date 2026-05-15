@@ -6,6 +6,7 @@ class Receipt(Base):
     __tablename__ = "receipts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True) # Keycloak 'sub'
     merchant = Column(String, index=True)
     total_amount = Column(Float)
     date = Column(Date, index=True)

@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { API_URL, getAuthHeaders } from '@/lib/api';
 
 interface ReceiptDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   receiptId: number | null;
   merchant: string;
+  token: string | null;
 }
 
-export default function ReceiptDrawer({ isOpen, onClose, receiptId, merchant }: ReceiptDrawerProps) {
+export default function ReceiptDrawer({ isOpen, onClose, receiptId, merchant, token }: ReceiptDrawerProps) {
   const [docUrl, setDocUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,21 +20,26 @@ export default function ReceiptDrawer({ isOpen, onClose, receiptId, merchant }: 
 
   useEffect(() => {
     if (isOpen && receiptId) {
-      fetchViewUrl();
+      if (token) {
+        fetchViewUrl();
+      } else {
+        setError('Authentication session not found. Please refresh.');
+      }
     } else {
       setDocUrl(null);
       setError(null);
       setRotation(0);
       setZoom(1);
     }
-  }, [isOpen, receiptId]);
+  }, [isOpen, receiptId, token]);
 
   const fetchViewUrl = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${apiUrl}/receipts/${receiptId}/view-url`);
+      const res = await fetch(`${API_URL}/receipts/${receiptId}/view-url`, {
+        headers: getAuthHeaders(token)
+      });
       if (!res.ok) throw new Error('Failed to retrieve document link');
       const data = await res.json();
       setDocUrl(data.url);

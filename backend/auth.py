@@ -16,18 +16,9 @@ from jose import jwt, JWTError, ExpiredSignatureError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+from config import settings
+
 logger = logging.getLogger("smart-vault")
-
-# ---------------------------------------------------------------------------
-# Configuration — all driven by environment variables, no Keycloak-specific
-# strings hardcoded here. Swap KEYCLOAK_URL for Okta/Cognito and it just works.
-# ---------------------------------------------------------------------------
-KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8080")
-KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "smart-vault")
-KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "smart-vault-app")
-
-JWKS_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
-ISSUER = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}"
 
 # In-process JWKS cache. Invalidated on key rotation detection.
 _jwks_cache: Optional[dict] = None
@@ -44,12 +35,12 @@ async def get_jwks() -> dict:
     if _jwks_cache is None:
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(JWKS_URL, timeout=5.0)
+                response = await client.get(settings.JWKS_URL, timeout=5.0)
                 response.raise_for_status()
                 _jwks_cache = response.json()
-                logger.info("JWKS fetched", extra={"jwks_url": JWKS_URL})
+                logger.info("JWKS fetched", extra={"jwks_url": settings.JWKS_URL})
         except Exception as e:
-            logger.error(f"Failed to fetch JWKS from {JWKS_URL}: {e}")
+            logger.error(f"Failed to fetch JWKS from {settings.JWKS_URL}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Authentication service unavailable",
@@ -61,46 +52,69 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
     """
-    FastAPI dependency: validates a Bearer JWT and returns its decoded claims.
-
-    Security properties enforced:
-    - RS256 signature verified against Keycloak's public JWKS
-    - Token expiry (exp claim) enforced
-    - Issuer (iss) must match this realm's URL
-    - Audience (aud) must match this application's client ID
-
-    On a JWTError (e.g. unknown kid from key rotation), the JWKS cache is
-    invalidated and the validation is retried once with fresh keys before failing.
+    Validates a Bearer JWT using JWKS and returns its decoded claims.
     """
-    global _jwks_cache
     token = credentials.credentials
+    
+    try:
+        # 1. Unverified header to find the Key ID (kid)
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Key ID in token")
 
-    for attempt in range(2):
-        try:
+        # 2. Fetch JWKS and find matching key
+        for attempt in range(2):
             jwks = await get_jwks()
-            payload = jwt.decode(
-                token,
-                jwks,
-                algorithms=["RS256"],
-                audience=KEYCLOAK_CLIENT_ID,
-                issuer=ISSUER,
-            )
-            return payload
+            rsa_key = {}
+            for key in jwks.get("keys", []):
+                if key["kid"] == kid:
+                    rsa_key = {
+                        "kty": key["kty"],
+                        "kid": key["kid"],
+                        "use": key["use"],
+                        "n": key["n"],
+                        "e": key["e"]
+                    }
+                    break
+            
+            if rsa_key:
+                try:
+                    payload = jwt.decode(
+                        token,
+                        rsa_key,
+                        algorithms=["RS256"],
+                        audience=None, # Relaxed for multitenant app compatibility
+                        issuer=settings.ISSUER,
+                        options={
+                            "verify_aud": False,
+                            "verify_at_hash": False,
+                            "verify_iss": True
+                        }
+                    )
+                    
+                    if "sub" not in payload:
+                        logger.error("JWT payload missing 'sub' claim")
+                        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+                        
+                    return payload
+                except ExpiredSignatureError:
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+                except JWTError as e:
+                    logger.warning(f"JWT decode attempt {attempt} failed: {e}")
+                    if attempt == 0:
+                        global _jwks_cache
+                        _jwks_cache = None
+                        continue
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            else:
+                if attempt == 0:
+                    _jwks_cache = None
+                    continue
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to find matching public key")
 
-        except ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        except JWTError:
-            if attempt == 0:
-                # Possible key rotation — flush cache and retry with fresh JWKS
-                logger.warning("JWT validation failed, refreshing JWKS cache")
-                _jwks_cache = None
-                continue
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected auth error: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed")

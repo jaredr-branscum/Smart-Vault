@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession, signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { identifyPII, finalizeRedaction, RedactionBox } from '@/lib/security';
 import RedactionEditor from '@/components/RedactionEditor';
 import UploadZone from '@/components/UploadZone';
 import ReviewForm, { ParsedData } from '@/components/ReviewForm';
 import SuccessState from '@/components/SuccessState';
+import { API_URL, getAuthHeaders } from '@/lib/api';
 
 type UploadStep = 'upload' | 'redact' | 'preview' | 'review' | 'success';
 
@@ -19,6 +22,15 @@ interface RedactionData {
 }
 
 export default function UploadPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      signIn('keycloak');
+    }
+  }, [status]);
+
   const [step, setStep] = useState<UploadStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -141,7 +153,6 @@ export default function UploadPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       const fileToUpload = redactedFile || selectedFile;
       if (!fileToUpload) throw new Error('No file available for upload.');
 
@@ -154,9 +165,10 @@ export default function UploadPage() {
       }));
       formData.append('file', fileToUpload);
 
-      const response = await fetch(`${apiUrl}/receipts`, {
+      const response = await fetch(`${API_URL}/receipts`, {
         method: 'POST',
         body: formData,
+        headers: getAuthHeaders((session as any)?.accessToken)
       });
 
       if (!response.ok) throw new Error('Failed to save the receipt.');
@@ -176,6 +188,19 @@ export default function UploadPage() {
     setStep('upload');
     setError(null);
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-[var(--color-voya-mint)] border-t-transparent animate-spin mb-4"></div>
+          <p className="text-[var(--foreground)]/60 font-medium">Validating Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
 
   return (
     <div className="min-h-screen bg-[var(--background)] py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
