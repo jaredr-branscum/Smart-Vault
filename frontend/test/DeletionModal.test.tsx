@@ -13,19 +13,30 @@ global.fetch = jest.fn();
 
 describe('Dashboard Deletion Workflow', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
-    
-    // Mock analytics response
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        total_expenses: 100.0,
-        by_category: { "Food": 100.0 },
-        receipts: [
-          { id: 1, merchant: "Test Store", total_amount: 100.0, date: "2026-05-07", category: "Food" }
-        ]
-      })
+    jest.resetAllMocks();
+    global.fetch = jest.fn().mockImplementation((url) => {
+      if (url.includes('/analytics')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            total_expenses: 100.0,
+            by_category: { "Food": 100.0 },
+            receipts: [
+              { id: 1, merchant: "Test Store", total_amount: 100.0, date: "2026-05-07", category: "Food" }
+            ]
+          })
+        });
+      }
+      if (url.includes('/receipts/') && url.endsWith('/view-url')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ url: 'http://example.com/receipt.pdf' })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ message: "Success" })
+      });
     });
   });
 
@@ -62,7 +73,7 @@ describe('Dashboard Deletion Workflow', () => {
     });
 
     // Click Delete in modal
-    const confirmDeleteBtn = screen.getByRole('button', { name: /Delete/i });
+    const confirmDeleteBtn = screen.getByRole('button', { name: /^Delete$/i });
     fireEvent.click(confirmDeleteBtn);
 
     // Verify item is removed from UI and total is updated
