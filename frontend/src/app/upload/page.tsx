@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { identifyPII, finalizeRedaction, RedactionBox } from '@/lib/security';
 import RedactionEditor from '@/components/RedactionEditor';
@@ -21,15 +21,28 @@ interface RedactionData {
   isPDF: boolean;
 }
 
+interface PuterWindow {
+  puter: {
+    ai: {
+      img2txt: (file: File) => Promise<string>;
+      chat: (prompt: string) => Promise<{
+        message: {
+          content: Array<{ text: string }>;
+        };
+      }>;
+    };
+  };
+}
+
 export default function UploadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      signIn('keycloak');
+      router.push('/login?callbackUrl=/upload');
     }
-  }, [status]);
+  }, [status, router]);
 
   const [step, setStep] = useState<UploadStep>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -121,9 +134,10 @@ export default function UploadPage() {
     setIsLoading(true);
 
     try {
-      const rawContent = await (window as any).puter.ai.img2txt(file);
+      const puterWindow = window as unknown as PuterWindow;
+      const rawContent = await puterWindow.puter.ai.img2txt(file);
       const prompt = `Extract receipt data from this text. Respond ONLY with JSON: {"merchant": string, "total_amount": number, "date": "YYYY-MM-DD"}. Text: ${rawContent}`;
-      const aiResponse = await (window as any).puter.ai.chat(prompt);
+      const aiResponse = await puterWindow.puter.ai.chat(prompt);
       
       let data;
       const content = aiResponse.message.content[0].text;
@@ -168,7 +182,7 @@ export default function UploadPage() {
       const response = await fetch(`${API_URL}/receipts`, {
         method: 'POST',
         body: formData,
-        headers: getAuthHeaders((session as any)?.accessToken)
+        headers: getAuthHeaders((session as unknown as { accessToken?: string })?.accessToken)
       });
 
       if (!response.ok) throw new Error('Failed to save the receipt.');

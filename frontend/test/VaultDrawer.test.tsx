@@ -27,6 +27,7 @@ describe('ReceiptDrawer Component', () => {
         onClose={jest.fn()} 
         receiptId={mockReceipt.id} 
         merchant={mockReceipt.merchant} 
+        token="mock-token"
       />
     );
 
@@ -34,7 +35,10 @@ describe('ReceiptDrawer Component', () => {
     expect(screen.getByText('Receipt ID: #123')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/receipts/123/view-url'));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/receipts/123/view-url'),
+        expect.any(Object)
+      );
     });
 
     // Check if image is rendered
@@ -54,6 +58,7 @@ describe('ReceiptDrawer Component', () => {
         onClose={jest.fn()} 
         receiptId={mockReceipt.id} 
         merchant={mockReceipt.merchant} 
+        token="mock-token"
       />
     );
 
@@ -82,6 +87,7 @@ describe('ReceiptDrawer Component', () => {
         onClose={jest.fn()} 
         receiptId={mockReceipt.id} 
         merchant={mockReceipt.merchant} 
+        token="mock-token"
       />
     );
 
@@ -98,6 +104,7 @@ describe('ReceiptDrawer Component', () => {
         onClose={onCloseMock} 
         receiptId={mockReceipt.id} 
         merchant={mockReceipt.merchant} 
+        token="mock-token"
       />
     );
 

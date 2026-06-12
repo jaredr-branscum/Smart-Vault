@@ -1,11 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  const handleSignOut = async () => {
+    const idToken = (session as unknown as { accessToken?: string })?.accessToken;
+    await signOut({ redirect: false });
+    window.location.href = `/api/auth/logout${idToken ? `?id_token=${encodeURIComponent(idToken)}` : ''}`;
+  };
+
+  if (status === 'loading') {
+    return (
+      <main className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-[var(--color-voya-mint)] border-t-transparent animate-spin mb-4" />
+          <p className="text-[var(--foreground)]/60 font-medium">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!session) return null;
 
   return (
     <main className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center relative overflow-hidden">
@@ -51,19 +78,19 @@ export default function Home() {
                       View Analytics Dashboard
                     </Link>
                     <button
-                      onClick={() => signOut()}
+                      onClick={handleSignOut}
                       className="text-[var(--foreground)] opacity-60 hover:opacity-100 text-sm font-medium transition-all"
                     >
                       Sign Out ({session.user?.name || session.user?.email})
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => signIn('keycloak')}
-                    className="px-8 py-4 bg-[var(--color-voya-mint)] text-white font-bold rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
+                  <Link
+                    href="/login"
+                    className="px-8 py-4 bg-[var(--color-voya-mint)] text-white font-bold rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 text-center"
                   >
                     Login to Start
-                  </button>
+                  </Link>
                 )}
               </div>
           </div>

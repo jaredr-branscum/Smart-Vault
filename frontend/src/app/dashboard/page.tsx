@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -28,9 +28,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      signIn('keycloak');
+      router.push('/login?callbackUrl=/dashboard');
     }
-  }, [status]);
+  }, [status, router]);
 
   const openDrawer = (id: number, merchant: string) => {
     setSelectedReceipt({ id, merchant });
@@ -45,7 +45,7 @@ export default function DashboardPage() {
         ...(startDate && { start_date: startDate }),
         ...(endDate && { end_date: endDate }),
       })}`, {
-        headers: getAuthHeaders((session as any)?.accessToken)
+        headers: getAuthHeaders((session as unknown as { accessToken?: string })?.accessToken)
       });
       if (!res.ok) throw new Error('Failed to fetch analytics');
       const json = await res.json();
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`${API_URL}/receipts/${id}`, { 
         method: 'DELETE',
-        headers: getAuthHeaders((session as any)?.accessToken)
+        headers: getAuthHeaders((session as unknown as { accessToken?: string })?.accessToken)
       });
       if (!res.ok) throw new Error('Failed to delete receipt');
 
@@ -307,7 +307,7 @@ export default function DashboardPage() {
         onClose={() => setIsDrawerOpen(false)}
         receiptId={selectedReceipt?.id || null}
         merchant={selectedReceipt?.merchant || 'Receipt Document'}
-        token={(session as any)?.accessToken}
+        token={(session as unknown as { accessToken?: string })?.accessToken || null}
       />
     </div>
   );

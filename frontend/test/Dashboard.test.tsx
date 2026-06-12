@@ -64,7 +64,10 @@ describe('Dashboard Page', () => {
     fireEvent.change(startDateInput, { target: { value: '2026-05-01' } });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('start_date=2026-05-01'));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('start_date=2026-05-01'),
+        expect.any(Object)
+      );
     });
   });
 });

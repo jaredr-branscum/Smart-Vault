@@ -13,7 +13,7 @@ global.fetch = jest.fn();
 
 describe('Dashboard Deletion Workflow', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     global.fetch = jest.fn().mockImplementation((url) => {
       if (url.includes('/analytics')) {
         return Promise.resolve({
